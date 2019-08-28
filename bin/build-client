@@ -1,0 +1,12 @@
+#!/bin/bash
+
+DIR="$(dirname "$0")"
+. "${DIR}/config"
+
+export GO111MODULE=on
+CGO_ENABLED=0 \
+    go build -a -tags grpcping \
+    -ldflags '-w -extldflags "-static"' \
+    -mod vendor \
+    -o ./bin/cli ./client/
+

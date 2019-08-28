@@ -1,0 +1,7 @@
+#!/bin/bash
+
+DIR="$(dirname "$0")"
+. "${DIR}/config"
+
+./cli --server "grpc-sample-2gtouos2pq-uc.a.run.app:443"
+

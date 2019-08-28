@@ -3,7 +3,7 @@
 
 export SERVICE="grpc-sample"
 export SERVICE_REGION="us-central1"
-export SERVICE_VERSION="0.0.1"
+export SERVICE_VERSION="0.0.2"
 
 # derived
 export PROJECT=$(gcloud config get-value project)

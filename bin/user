@@ -25,10 +25,3 @@ gcloud projects add-iam-policy-binding $PROJECT \
 	--member "serviceAccount:${SERVICE_ACCOUNT}" \
     --role roles/monitoring.metricWriter
 
-gcloud projects add-iam-policy-binding $PROJECT \
-	--member "serviceAccount:${SERVICE_ACCOUNT}" \
-    --role roles/cloudsql.editor
-
-gsutil iam ch "serviceAccount:${SERVICE_ACCOUNT}:objectViewer" \
-	"gs://${CONF_BUCKET}"
-

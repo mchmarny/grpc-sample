@@ -13,5 +13,4 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 FROM gcr.io/distroless/static
 COPY --from=builder /src/server .
 
-EXPOSE 8080
 ENTRYPOINT ["/server"]
