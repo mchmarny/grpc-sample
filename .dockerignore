@@ -1,0 +1,8 @@
+.DS_Store
+/bin
+/img
+README.md
+.git
+.gitignore
+*_test.go
+coverage.out

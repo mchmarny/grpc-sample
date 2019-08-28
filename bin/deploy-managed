@@ -1,0 +1,10 @@
+#!/bin/bash
+
+DIR="$(dirname "$0")"
+. "${DIR}/config"
+
+gcloud beta run deploy $SERVICE \
+	--image "gcr.io/${PROJECT}/${SERVICE}:${SERVICE_VERSION}" \
+	--allow-unauthenticated \
+    --platform managed \
+	--region $SERVICE_REGION
