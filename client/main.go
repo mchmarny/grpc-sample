@@ -1,5 +1,3 @@
-// +build grpcping
-
 package main
 
 import (
@@ -8,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"os"
 	"time"
 
 	pb "github.com/mchmarny/grpc-sample/pkg/api/v1"
@@ -17,15 +16,16 @@ import (
 )
 
 var (
-	serverAddr = flag.String("server", "127.0.0.1:8080", "The server address in the format of host:port")
-	serverHost = flag.String("server-host", "", "")
-	insecure   = flag.Bool("insecure", false, "Set to true to skip SSL validation")
-	skipVerify = flag.Bool("skip-verify", false, "Set to true to skip server hostname verification in SSL validation")
+	logger     = log.New(os.Stdout, "", 0)
+	serverAddr = flag.String("server", "", "Server address (host:port)")
+	serverHost = flag.String("server-host", "", "Host name to which server IP should resolve")
+	insecure   = flag.Bool("insecure", false, "Skip SSL validation? [false]")
+	skipVerify = flag.Bool("skip-verify", false, "Skip server hostname verification in SSL validation [false]")
+	streamMsgs = flag.Int("stream-msg-num", 10, "Number of stream messages [10]")
 )
 
 func main() {
 	flag.Parse()
-
 	var opts []grpc.DialOption
 	if *serverHost != "" {
 		opts = append(opts, grpc.WithAuthority(*serverHost))
@@ -40,12 +40,10 @@ func main() {
 	}
 	conn, err := grpc.Dial(*serverAddr, opts...)
 	if err != nil {
-		log.Fatalf("fail to dial: %v", err)
+		logger.Fatalf("Failed to dial: %v", err)
 	}
 	defer conn.Close()
-
 	client := pb.NewPingServiceClient(conn)
-
 	ping(client, "hello")
 	pingStream(client, "hello")
 }
@@ -55,9 +53,9 @@ func ping(client pb.PingServiceClient, msg string) {
 	defer cancel()
 	rep, err := client.Ping(ctx, &pb.Request{Msg: msg})
 	if err != nil {
-		log.Fatalf("%v.Ping failed %v: ", client, err)
+		logger.Fatalf("%v.Ping failed %v: ", client, err)
 	}
-	log.Printf("Ping got %v\n", rep.GetMsg())
+	logger.Printf("[unary-unary] ping response: %v", rep.GetMsg())
 }
 
 func pingStream(client pb.PingServiceClient, msg string) {
@@ -65,7 +63,7 @@ func pingStream(client pb.PingServiceClient, msg string) {
 	defer cancel()
 	stream, err := client.PingStream(ctx)
 	if err != nil {
-		log.Fatalf("%v.(_) = _, %v", client, err)
+		logger.Fatalf("%v.(_) = _, %v", client, err)
 	}
 
 	waitc := make(chan struct{})
@@ -73,25 +71,23 @@ func pingStream(client pb.PingServiceClient, msg string) {
 		for {
 			in, err := stream.Recv()
 			if err == io.EOF {
-				// read done.
 				close(waitc)
 				return
 			}
 			if err != nil {
-				log.Fatalf("Failed to receive a response : %v", err)
+				logger.Fatalf("Failed to receive a response: %v", err)
 			}
-			log.Printf("Got %s", in.GetMsg())
+			logger.Printf("[unary-stream] ping response: %s", in.GetMsg())
 		}
 	}()
 
 	i := 0
-	for i < 20 {
+	for i < *streamMsgs {
 		if err := stream.Send(&pb.Request{Msg: fmt.Sprintf("%s-%d", msg, i)}); err != nil {
-			log.Fatalf("Failed to send a ping: %v", err)
+			logger.Fatalf("Failed to send a ping: %v", err)
 		}
 		i++
 	}
 	stream.CloseSend()
 	<-waitc
-
 }

@@ -1,5 +1,3 @@
-// +build grpcping
-
 package main
 
 import (
@@ -7,14 +5,20 @@ import (
 	"io"
 	"log"
 	"net"
+	"os"
 	"time"
 
+	ev "github.com/mchmarny/gcputil/env"
 	ping "github.com/mchmarny/grpc-sample/pkg/api/v1"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
-var port = 8080
+var (
+	logger = log.New(os.Stdout, "", 0)
+	port   = ev.MustGetEnvVar("PORT", "8080")
+)
 
 type pingServer struct {
 }
@@ -26,40 +30,33 @@ func (p *pingServer) Ping(ctx context.Context, req *ping.Request) (*ping.Respons
 func (p *pingServer) PingStream(stream ping.PingService_PingStreamServer) error {
 	for {
 		req, err := stream.Recv()
-
 		if err == io.EOF {
-			fmt.Println("Client disconnected")
+			logger.Println("Client disconnected")
 			return nil
 		}
 
 		if err != nil {
-			fmt.Println("Failed to receive ping")
-			return err
+			return errors.Wrapf(err, "Failed to receive ping")
 		}
 
-		fmt.Printf("Replying to ping %s at %s\n", req.Msg, time.Now())
-
+		logger.Printf("Replying to ping %s at %s\n", req.Msg, time.Now())
 		err = stream.Send(&ping.Response{
 			Msg: fmt.Sprintf("pong %s", time.Now()),
 		})
 
 		if err != nil {
-			fmt.Printf("Failed to send pong %s\n", err)
-			return err
+			return errors.Wrapf(err, "Failed to send pong")
 		}
 	}
 }
 
 func main() {
-	lis, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%d", port))
+	hostPost := net.JoinHostPort("0.0.0.0", port)
+	lis, err := net.Listen("tcp", hostPost)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		logger.Fatalf("Failed to listen on %s: %v", hostPost, err)
 	}
-
 	pingServer := &pingServer{}
-
-	// The grpcServer is currently configured to serve h2c traffic by default.
-	// To configure credentials or encryption, see: https://grpc.io/docs/guides/auth.html#go
 	grpcServer := grpc.NewServer()
 	ping.RegisterPingServiceServer(grpcServer, pingServer)
 	grpcServer.Serve(lis)
