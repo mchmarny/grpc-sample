@@ -10,7 +10,7 @@ import (
 	"log"
 	"time"
 
-	pb "github.com/mchmarny/grpc-sample/pkg/v1"
+	pb "github.com/mchmarny/grpc-sample/pkg/api/v1"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

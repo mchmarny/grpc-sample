@@ -4,8 +4,6 @@ github.com/golang/protobuf/ptypes
 github.com/golang/protobuf/ptypes/any
 github.com/golang/protobuf/ptypes/duration
 github.com/golang/protobuf/ptypes/timestamp
-# github.com/knative/docs v0.0.0-20190827203640-b6313703d529
-github.com/knative/docs/docs/serving/samples/grpc-ping-go/proto
 # golang.org/x/net v0.0.0-20190827160401-ba9fcec4b297
 golang.org/x/net/context
 golang.org/x/net/trace

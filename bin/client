@@ -10,3 +10,10 @@ CGO_ENABLED=0 \
     -mod vendor \
     -o ./bin/ping ./client/
 
+export SERVICE_URL=$(gcloud beta run services describe $SERVICE \
+    --platform managed \
+    --region $SERVICE_REGION \
+    --format="value(status.domain)")
+
+echo "Ping using:"
+echo "bin/ping --server ${SERVICE_URL/https:\/\//}:443"
