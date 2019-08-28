@@ -8,5 +8,5 @@ CGO_ENABLED=0 \
     go build -a -tags grpcping \
     -ldflags '-w -extldflags "-static"' \
     -mod vendor \
-    -o ./bin/cli ./client/
+    -o ./bin/ping ./client/
 
