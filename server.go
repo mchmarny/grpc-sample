@@ -4,11 +4,11 @@ import (
 	"io"
 	"log"
 	"net"
-	"net/http"
+
 	"os"
 
 	ptypes "github.com/golang/protobuf/ptypes"
-	"github.com/grpc-ecosystem/grpc-gateway/runtime"
+
 	ev "github.com/mchmarny/gcputil/env"
 	pb "github.com/mchmarny/grpc-sample/pkg/api/v1"
 
@@ -19,7 +19,6 @@ import (
 
 var (
 	logger   = log.New(os.Stdout, "", 0)
-	restPort = ev.MustGetEnvVar("H2C", "8081")
 	grpcPort = ev.MustGetEnvVar("PORT", "8080")
 )
 
@@ -75,38 +74,14 @@ func startGRPCServer(hostPort string) error {
 	return grpcServer.Serve(listener)
 }
 
-func startRESTServer(restHostPort, grpcHostPort string) error {
-	ctx := context.Background()
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	mux := runtime.NewServeMux()
-	opts := []grpc.DialOption{grpc.WithInsecure()}
-	err := pb.RegisterMessageServiceHandlerFromEndpoint(ctx, mux, grpcHostPort, opts)
-	if err != nil {
-		return errors.Wrap(err, "Unable to not register service Send")
-	}
-	log.Printf("Starting REST server: %s", restHostPort)
-	return http.ListenAndServe(restHostPort, mux)
-}
-
 func main() {
 
 	grpcHostPort := net.JoinHostPort("0.0.0.0", grpcPort)
-	restHostPort := net.JoinHostPort("0.0.0.0", restPort)
 
-	// gRPC
 	go func() {
 		err := startGRPCServer(grpcHostPort)
 		if err != nil {
 			logger.Fatalf("Failed to start gRPC server: %v", err)
-		}
-	}()
-
-	// REST
-	go func() {
-		err := startRESTServer(restHostPort, grpcHostPort)
-		if err != nil {
-			logger.Fatalf("Failed to start REST server: %v", err)
 		}
 	}()
 

@@ -37,14 +37,9 @@ syntax = "proto3";
 package message;
 
 import "google/protobuf/timestamp.proto";
-import "google/api/annotations.proto";
 
 service MessageService {
-  rpc Send(Request) returns (Response) {
-    option (google.api.http) = {
-      get: "/v1/send/{message}"
-    };
-  }
+  rpc Send(Request) returns (Response) {}
   rpc SendStream(stream Request) returns (stream Response) {}
 }
 
@@ -73,7 +68,7 @@ To auto-generate the `go` code from that `proto` run [bin/api](bin/api) script
 bin/api
 ```
 
-As a result, you should now have a new `go` files titled [pkg/api/v1/message.pb.go](pkg/api/v1/message.pb.go) and [pkg/api/v1/message.pb.gw.go](pkg/api/v1/message.pb.gw.go). You can review that file but don't edit it as it will be overwritten the next time we run the [bin/api](bin/api) script
+As a result, you should now have a new `go` file titled [pkg/api/v1/message.pb.go](pkg/api/v1/message.pb.go). You can review that file but don't edit it as it will be overwritten the next time we run the [bin/api](bin/api) script
 
 
 ## Container Image
@@ -142,8 +137,6 @@ Unary Request/Stream Response
   Stream[4] - Server time: 2019-08-29T17:16:22.837959711Z
   Stream[5] - Server time: 2019-08-29T17:16:22.837968925Z
 ```
-
-> The gRPC service has also support for REST method `get: "/v1/send/{message}"` but this doesn't seem to work on Cloud Run right now. I'm still debugging this.
 
 ## Disclaimer
 

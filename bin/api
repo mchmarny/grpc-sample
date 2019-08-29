@@ -14,5 +14,5 @@ protoc \
 protoc \
     --proto_path api/v1 \
     --proto_path $GOOGLEAPIS_DIR \
-    --grpc-gateway_out "logtostderr=true:pkg/api/v1" \
+    --swagger_out "logtostderr=true:pkg/api/v1" \
     message.proto

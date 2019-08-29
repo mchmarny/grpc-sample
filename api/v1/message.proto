@@ -3,14 +3,9 @@ syntax = "proto3";
 package message;
 
 import "google/protobuf/timestamp.proto";
-import "google/api/annotations.proto";
 
 service MessageService {
-  rpc Send(Request) returns (Response) {
-    option (google.api.http) = {
-      get: "/v1/send/{message}"
-    };
-  }
+  rpc Send(Request) returns (Response) {}
   rpc SendStream(stream Request) returns (stream Response) {}
 }
 
@@ -27,5 +22,3 @@ message Content {
 message Response {
   Content content = 1;
 }
-
-
