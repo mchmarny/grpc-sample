@@ -8,12 +8,19 @@ CGO_ENABLED=0 \
     go build -a -tags grpcping \
     -ldflags '-w -extldflags "-static"' \
     -mod vendor \
-    -o ./bin/ping ./client/
+    -o ./bin/cli ./client/
 
 export SERVICE_URL=$(gcloud beta run services describe $SERVICE \
     --platform managed \
     --region $SERVICE_REGION \
     --format="value(status.domain)")
 
-echo "Ping using:"
-echo "bin/ping --server ${SERVICE_URL/https:\/\//}:443"
+
+echo -e "Client CLI geenrated.
+Usage:
+ Unary Request/Unary Response
+ bin/cli --server ${SERVICE_URL/https:\/\//}:443 --author $USER --message hi
+
+ Unary Request/Stream Response
+ bin/cli --server ${SERVICE_URL/https:\/\//}:443 --author $USER --message hi --stream 5
+"

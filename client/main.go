@@ -21,7 +21,7 @@ var (
 	serverHost = flag.String("server-host", "", "Host name to which server IP should resolve")
 	insecure   = flag.Bool("insecure", false, "Skip SSL validation? [false]")
 	skipVerify = flag.Bool("skip-verify", false, "Skip server hostname verification in SSL validation [false]")
-	streamMsgs = flag.Int("stream-msg-num", 10, "Number of stream messages [10]")
+	streamMsgs = flag.Int("stream", 0, "Number of messages to stream [0]")
 	author     = flag.String("author", "Sample Client", "The author of the content sent to server")
 	message    = flag.String("message", "Hi there", "The body of the content sent to server")
 )
@@ -46,19 +46,23 @@ func main() {
 	}
 	defer conn.Close()
 	client := pb.NewMessageServiceClient(conn)
-	send(client)
-	sendStream(client)
+
+	if *streamMsgs == 0 {
+		send(client)
+	} else {
+		sendStream(client)
+	}
 }
 
 func send(client pb.MessageServiceClient) {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	rep, err := client.Send(ctx, &pb.Request{Content: getContent()})
+	c := getContent()
+	rep, err := client.Send(ctx, &pb.Request{Content: c})
 	if err != nil {
 		logger.Fatalf("Error while executing Send: %v", err)
 	}
-	logger.Printf("unary request, unary response\n  Sent[%d]: %+v",
-		rep.GetIndex(), rep.GetReceivedOn())
+	logger.Printf("Unary Request/Unary Response\n Sent:\n  %+v\n Response:\n  %+v", c, rep)
 }
 
 func sendStream(client pb.MessageServiceClient) {
@@ -72,7 +76,7 @@ func sendStream(client pb.MessageServiceClient) {
 
 	waitCh := make(chan struct{})
 	go func() {
-		logger.Println("unary request, stream response")
+		logger.Println("Unary Request/Stream Response")
 		for {
 			in, err := stream.Recv()
 			if err == io.EOF {
@@ -82,8 +86,8 @@ func sendStream(client pb.MessageServiceClient) {
 			if err != nil {
 				logger.Fatalf("Failed to receive a response: %v", err)
 			}
-			logger.Printf("  Sent[%d]: %+v",
-				in.GetIndex(), in.GetReceivedOn())
+			logger.Printf("  Stream[%d] - Server time: %s",
+				in.GetIndex(), ptypes.TimestampString(in.GetReceivedOn()))
 		}
 	}()
 
