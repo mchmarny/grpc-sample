@@ -21,8 +21,7 @@ var (
 	serverHost = flag.String("server-host", "", "Host name to which server IP should resolve")
 	insecure   = flag.Bool("insecure", false, "Skip SSL validation? [false]")
 	skipVerify = flag.Bool("skip-verify", false, "Skip server hostname verification in SSL validation [false]")
-	streamMsgs = flag.Int("stream", 0, "Number of messages to stream [0]")
-	author     = flag.String("author", "Sample Client", "The author of the content sent to server")
+	streamSize = flag.Int("stream", 0, "Number of messages to stream [0]")
 	message    = flag.String("message", "Hi there", "The body of the content sent to server")
 )
 
@@ -47,7 +46,7 @@ func main() {
 	defer conn.Close()
 	client := pb.NewMessageServiceClient(conn)
 
-	if *streamMsgs == 0 {
+	if *streamSize == 0 {
 		send(client)
 	} else {
 		sendStream(client)
@@ -57,12 +56,13 @@ func main() {
 func send(client pb.MessageServiceClient) {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	c := getContent()
-	rep, err := client.Send(ctx, &pb.Request{Content: c})
+	resp, err := client.Send(ctx, &pb.Request{
+		Message: *message,
+	})
 	if err != nil {
 		logger.Fatalf("Error while executing Send: %v", err)
 	}
-	logger.Printf("Unary Request/Unary Response\n Sent:\n  %+v\n Response:\n  %+v", c, rep)
+	logger.Printf("Unary Request/Unary Response\n Sent:\n  %s\n Response:\n  %+v", *message, resp)
 }
 
 func sendStream(client pb.MessageServiceClient) {
@@ -86,26 +86,21 @@ func sendStream(client pb.MessageServiceClient) {
 			if err != nil {
 				logger.Fatalf("Failed to receive a response: %v", err)
 			}
+			c := in.GetContent()
 			logger.Printf("  Stream[%d] - Server time: %s",
-				in.GetIndex(), ptypes.TimestampString(in.GetReceivedOn()))
+				c.GetIndex(), ptypes.TimestampString(c.GetReceivedOn()))
 		}
 	}()
 
 	i := 0
-	for i < *streamMsgs {
-		if err := stream.Send(&pb.Request{Content: getContent()}); err != nil {
+	for i < *streamSize {
+		if err := stream.Send(&pb.Request{
+			Message: *message,
+		}); err != nil {
 			logger.Fatalf("Failed to Send: %v", err)
 		}
 		i++
 	}
 	stream.CloseSend()
 	<-waitCh
-}
-
-func getContent() *pb.Content {
-	return &pb.Content{
-		Body:      *message,
-		Author:    *author,
-		CreatedOn: ptypes.TimestampNow(),
-	}
 }

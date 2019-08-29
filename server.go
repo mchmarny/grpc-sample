@@ -4,9 +4,11 @@ import (
 	"io"
 	"log"
 	"net"
+	"net/http"
 	"os"
 
 	ptypes "github.com/golang/protobuf/ptypes"
+	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	ev "github.com/mchmarny/gcputil/env"
 	pb "github.com/mchmarny/grpc-sample/pkg/api/v1"
 
@@ -16,22 +18,24 @@ import (
 )
 
 var (
-	logger = log.New(os.Stdout, "", 0)
-	port   = ev.MustGetEnvVar("PORT", "8080")
+	logger   = log.New(os.Stdout, "", 0)
+	restPort = ev.MustGetEnvVar("H2C", "8081")
+	grpcPort = ev.MustGetEnvVar("PORT", "8080")
 )
 
-type messageService struct {
-}
+type messageService struct{}
 
-func (p *messageService) Send(ctx context.Context, req *pb.Request) (*pb.Response, error) {
+func (s *messageService) Send(ctx context.Context, req *pb.Request) (*pb.Response, error) {
 	return &pb.Response{
-		Index:      1,
-		ReceivedOn: ptypes.TimestampNow(),
-		Content:    req.GetContent(),
+		Content: &pb.Content{
+			Index:      1,
+			Message:    req.GetMessage(),
+			ReceivedOn: ptypes.TimestampNow(),
+		},
 	}, nil
 }
 
-func (p *messageService) SendStream(stream pb.MessageService_SendStreamServer) error {
+func (s *messageService) SendStream(stream pb.MessageService_SendStreamServer) error {
 	var i int32
 	for {
 		req, err := stream.Recv()
@@ -40,17 +44,19 @@ func (p *messageService) SendStream(stream pb.MessageService_SendStreamServer) e
 			return nil
 		}
 		if err != nil {
-			return errors.Wrap(err, "Failed to receive ping")
+			return errors.Wrap(err, "Failed to receive send")
 		}
 
-		c := req.GetContent()
-		i++ // TODO: clean this up
-		logger.Printf("Replying to send[%d]: %+v", i, c)
+		m := req.GetMessage()
+		i++
+		logger.Printf("Replying to send[%d]: %+v", i, m)
 
 		err = stream.Send(&pb.Response{
-			Index:      i,
-			ReceivedOn: ptypes.TimestampNow(),
-			Content:    req.GetContent(),
+			Content: &pb.Content{
+				Index:      i,
+				Message:    m,
+				ReceivedOn: ptypes.TimestampNow(),
+			},
 		})
 
 		if err != nil {
@@ -59,18 +65,51 @@ func (p *messageService) SendStream(stream pb.MessageService_SendStreamServer) e
 	}
 }
 
-func main() {
-
-	hostPort := net.JoinHostPort("0.0.0.0", port)
+func startGRPCServer(hostPort string) error {
 	listener, err := net.Listen("tcp", hostPort)
 	if err != nil {
-		logger.Fatalf("Failed to listen on %s: %v", hostPort, err)
+		return errors.Wrapf(err, "Failed to listen on %s: %v", hostPort, err)
 	}
-
 	grpcServer := grpc.NewServer()
 	pb.RegisterMessageServiceServer(grpcServer, &messageService{})
+	return grpcServer.Serve(listener)
+}
 
-	if err != grpcServer.Serve(listener) {
-		logger.Fatalf("Failed while serving: %v", err)
+func startRESTServer(restHostPort, grpcHostPort string) error {
+	ctx := context.Background()
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	mux := runtime.NewServeMux()
+	opts := []grpc.DialOption{grpc.WithInsecure()}
+	err := pb.RegisterMessageServiceHandlerFromEndpoint(ctx, mux, grpcHostPort, opts)
+	if err != nil {
+		return errors.Wrap(err, "Unable to not register service Send")
 	}
+	log.Printf("Starting REST server: %s", restHostPort)
+	return http.ListenAndServe(restHostPort, mux)
+}
+
+func main() {
+
+	grpcHostPort := net.JoinHostPort("0.0.0.0", grpcPort)
+	restHostPort := net.JoinHostPort("0.0.0.0", restPort)
+
+	// gRPC
+	go func() {
+		err := startGRPCServer(grpcHostPort)
+		if err != nil {
+			logger.Fatalf("Failed to start gRPC server: %v", err)
+		}
+	}()
+
+	// REST
+	go func() {
+		err := startRESTServer(restHostPort, grpcHostPort)
+		if err != nil {
+			logger.Fatalf("Failed to start REST server: %v", err)
+		}
+	}()
+
+	logger.Println("Server started...")
+	select {}
 }

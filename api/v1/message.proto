@@ -1,28 +1,31 @@
 syntax = "proto3";
 
-package ping;
+package message;
 
 import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
 
 service MessageService {
-  rpc Send(Request) returns (Response) {}
+  rpc Send(Request) returns (Response) {
+    option (google.api.http) = {
+      get: "/v1/send/{message}"
+    };
+  }
   rpc SendStream(stream Request) returns (stream Response) {}
 }
 
-message Content {
-  string body = 1;
-  string author = 2;
-  google.protobuf.Timestamp created_on = 3;
+message Request {
+  string message = 1;
 }
 
-message Request {
-  Content content = 1;
+message Content {
+  int32 index = 1;
+  string message = 2;
+  google.protobuf.Timestamp received_on = 3;
 }
 
 message Response {
-  int32 index = 1;
-  Content content = 2;
-  google.protobuf.Timestamp received_on = 3;
+  Content content = 1;
 }
 
 

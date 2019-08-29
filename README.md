@@ -34,29 +34,32 @@ The `proto` file I will use in this example is located in [api/v1/message.proto]
 ```protobuf
 syntax = "proto3";
 
-package ping;
+package message;
 
 import "google/protobuf/timestamp.proto";
+import "google/api/annotations.proto";
 
 service MessageService {
-  rpc Send(Request) returns (Response) {}
+  rpc Send(Request) returns (Response) {
+    option (google.api.http) = {
+      get: "/v1/send/{message}"
+    };
+  }
   rpc SendStream(stream Request) returns (stream Response) {}
 }
 
-message Content {
-  string body = 1;
-  string author = 2;
-  google.protobuf.Timestamp created_on = 3;
+message Request {
+  string message = 1;
 }
 
-message Request {
-  Content content = 1;
+message Content {
+  int32 index = 1;
+  string message = 2;
+  google.protobuf.Timestamp received_on = 3;
 }
 
 message Response {
-  int32 index = 1;
-  Content content = 2;
-  google.protobuf.Timestamp received_on = 3;
+  Content content = 1;
 }
 ```
 
@@ -70,7 +73,7 @@ To auto-generate the `go` code from that `proto` run [bin/api](bin/api) script
 bin/api
 ```
 
-As a result, you should now have a new `go` file titled [pkg/api/v1/message.pb.go](pkg/api/v1/message.pb.go). You can review that file but don't edit it as it will be overwritten the next time we run the [bin/api](bin/api) script
+As a result, you should now have a new `go` files titled [pkg/api/v1/message.pb.go](pkg/api/v1/message.pb.go) and [pkg/api/v1/message.pb.gw.go](pkg/api/v1/message.pb.gw.go). You can review that file but don't edit it as it will be overwritten the next time we run the [bin/api](bin/api) script
 
 
 ## Container Image
@@ -108,13 +111,13 @@ bin/client
 The resulting CLI will be compiled into the `bin` directory. The output of the [bin/client](bin/client) script will also print out the two ways you can execute that client
 
 ```shell
-Client CLI geenrated.
+Client CLI generated.
 Usage:
  Unary Request/Unary Response
- bin/cli --server grpc-sample-***-uc.a.run.app:443 --author username --message hi
+ bin/cli --server grpc-sample-***-uc.a.run.app:443 --message hi
 
  Unary Request/Stream Response
- bin/cli --server grpc-sample-***-uc.a.run.app:443 --author username --message hi --stream 5
+ bin/cli --server grpc-sample-***-uc.a.run.app:443 --message hi --stream 5
 ```
 
 ### Testing Service on Cloud Run
@@ -124,20 +127,23 @@ When executing the built CLI in unary way (by not including the `--stream` flag)
 ```shell
 Unary Request/Unary Response
  Sent:
-  body:"hi" author:"mchmarny" created_on:<seconds:1567051011 nanos:881391000 >
+  hi
  Response:
-  index:1 content:<body:"hi" author:"mchmarny" created_on:<seconds:1567051011 nanos:881391000 > > received_on:<seconds:1567051012 nanos:294123569 >
+  content:<index:1 message:"hi" received_on:<seconds:1567098976 nanos:535796117 > >
 ```
 
 Where as executing it using stream (with `--stream` number) the CLI will print the sent message index and server processing time
 
 ```shell
 Unary Request/Stream Response
-  Stream[1] - Server time: 2019-08-29T03:57:05.120052543Z
-  Stream[2] - Server time: 2019-08-29T03:57:05.120096926Z
-  Stream[3] - Server time: 2019-08-29T03:57:05.120117664Z
-  Stream[4] - Server time: 2019-08-29T03:57:05.120130517Z
+  Stream[1] - Server time: 2019-08-29T17:16:22.837297811Z
+  Stream[2] - Server time: 2019-08-29T17:16:22.837928885Z
+  Stream[3] - Server time: 2019-08-29T17:16:22.83794915Z
+  Stream[4] - Server time: 2019-08-29T17:16:22.837959711Z
+  Stream[5] - Server time: 2019-08-29T17:16:22.837968925Z
 ```
+
+> The gRPC service has also support for REST method `get: "/v1/send/{message}"` but this doesn't seem to work on Cloud Run right now. I'm still debugging this.
 
 ## Disclaimer
 
