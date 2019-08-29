@@ -6,5 +6,6 @@ DIR="$(dirname "$0")"
 gcloud beta run deploy $SERVICE \
 	--image "gcr.io/${PROJECT}/${SERVICE}:${SERVICE_VERSION}" \
 	--allow-unauthenticated \
+	--service-account $SERVICE_ACCOUNT \
     --platform managed \
 	--region $SERVICE_REGION
