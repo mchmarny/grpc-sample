@@ -4,6 +4,7 @@ DIR="$(dirname "$0")"
 . "${DIR}/config"
 
 mkdir -p pkg/api/v1
+mkdir -p pkg/doc/v1
 
 protoc \
     --proto_path api/v1 \
@@ -14,5 +15,5 @@ protoc \
 protoc \
     --proto_path api/v1 \
     --proto_path $GOOGLEAPIS_DIR \
-    --swagger_out "logtostderr=true:pkg/api/v1" \
+    --swagger_out "logtostderr=true:pkg/doc/v1" \
     message.proto
