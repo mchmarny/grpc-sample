@@ -10,6 +10,7 @@ import (
 
 	ev "github.com/mchmarny/gcputil/env"
 	ping "github.com/mchmarny/grpc-sample/pkg/api/v1"
+
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -34,30 +35,36 @@ func (p *pingServer) PingStream(stream ping.PingService_PingStreamServer) error 
 			logger.Println("Client disconnected")
 			return nil
 		}
-
 		if err != nil {
-			return errors.Wrapf(err, "Failed to receive ping")
+			return errors.Wrap(err, "Failed to receive ping")
 		}
 
-		logger.Printf("Replying to ping %s at %s\n", req.Msg, time.Now())
+		now := time.Now()
+		logger.Printf("Replying to ping %s at %s\n", req.Msg, now)
 		err = stream.Send(&ping.Response{
-			Msg: fmt.Sprintf("pong %s", time.Now()),
+			Msg: fmt.Sprintf("pong at %s", now),
 		})
 
 		if err != nil {
-			return errors.Wrapf(err, "Failed to send pong")
+			return errors.Wrap(err, "Failed to send pong")
 		}
 	}
 }
 
 func main() {
-	hostPost := net.JoinHostPort("0.0.0.0", port)
-	lis, err := net.Listen("tcp", hostPost)
+
+	hostPort := net.JoinHostPort("0.0.0.0", port)
+	lis, err := net.Listen("tcp", hostPort)
 	if err != nil {
-		logger.Fatalf("Failed to listen on %s: %v", hostPost, err)
+		logger.Fatalf("Failed to listen on %s: %v", hostPort, err)
 	}
+
 	pingServer := &pingServer{}
 	grpcServer := grpc.NewServer()
 	ping.RegisterPingServiceServer(grpcServer, pingServer)
+
 	grpcServer.Serve(lis)
+	if err != grpcServer.Serve(lis) {
+		logger.Fatalf("Failed while serving: %v", err)
+	}
 }

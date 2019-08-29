@@ -59,19 +59,20 @@ func ping(client pb.PingServiceClient, msg string) {
 }
 
 func pingStream(client pb.PingServiceClient, msg string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
+
 	stream, err := client.PingStream(ctx)
 	if err != nil {
-		logger.Fatalf("%v.(_) = _, %v", client, err)
+		logger.Fatalf("Error client (%v) PingStream: %v", client, err)
 	}
 
-	waitc := make(chan struct{})
+	waitCh := make(chan struct{})
 	go func() {
 		for {
 			in, err := stream.Recv()
 			if err == io.EOF {
-				close(waitc)
+				close(waitCh)
 				return
 			}
 			if err != nil {
@@ -89,5 +90,5 @@ func pingStream(client pb.PingServiceClient, msg string) {
 		i++
 	}
 	stream.CloseSend()
-	<-waitc
+	<-waitCh
 }
