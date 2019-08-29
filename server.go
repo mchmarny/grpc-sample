@@ -1,15 +1,14 @@
 package main
 
 import (
-	"fmt"
 	"io"
 	"log"
 	"net"
 	"os"
-	"time"
 
+	ptypes "github.com/golang/protobuf/ptypes"
 	ev "github.com/mchmarny/gcputil/env"
-	ping "github.com/mchmarny/grpc-sample/pkg/api/v1"
+	pb "github.com/mchmarny/grpc-sample/pkg/api/v1"
 
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -21,14 +20,19 @@ var (
 	port   = ev.MustGetEnvVar("PORT", "8080")
 )
 
-type pingServer struct {
+type messageService struct {
 }
 
-func (p *pingServer) Ping(ctx context.Context, req *ping.Request) (*ping.Response, error) {
-	return &ping.Response{Msg: fmt.Sprintf("%s - pong", req.Msg)}, nil
+func (p *messageService) Send(ctx context.Context, req *pb.Request) (*pb.Response, error) {
+	return &pb.Response{
+		Index:      1,
+		ReceivedOn: ptypes.TimestampNow(),
+		Content:    req.GetContent(),
+	}, nil
 }
 
-func (p *pingServer) PingStream(stream ping.PingService_PingStreamServer) error {
+func (p *messageService) SendStream(stream pb.MessageService_SendStreamServer) error {
+	var i int32
 	for {
 		req, err := stream.Recv()
 		if err == io.EOF {
@@ -39,10 +43,14 @@ func (p *pingServer) PingStream(stream ping.PingService_PingStreamServer) error 
 			return errors.Wrap(err, "Failed to receive ping")
 		}
 
-		now := time.Now()
-		logger.Printf("Replying to ping %s at %s\n", req.Msg, now)
-		err = stream.Send(&ping.Response{
-			Msg: fmt.Sprintf("pong at %s", now),
+		c := req.GetContent()
+		i++ // TODO: clean this up
+		logger.Printf("Replying to send[%d]: %+v", i, c)
+
+		err = stream.Send(&pb.Response{
+			Index:      i,
+			ReceivedOn: ptypes.TimestampNow(),
+			Content:    req.GetContent(),
 		})
 
 		if err != nil {
@@ -54,17 +62,15 @@ func (p *pingServer) PingStream(stream ping.PingService_PingStreamServer) error 
 func main() {
 
 	hostPort := net.JoinHostPort("0.0.0.0", port)
-	lis, err := net.Listen("tcp", hostPort)
+	listener, err := net.Listen("tcp", hostPort)
 	if err != nil {
 		logger.Fatalf("Failed to listen on %s: %v", hostPort, err)
 	}
 
-	pingServer := &pingServer{}
 	grpcServer := grpc.NewServer()
-	ping.RegisterPingServiceServer(grpcServer, pingServer)
+	pb.RegisterMessageServiceServer(grpcServer, &messageService{})
 
-	grpcServer.Serve(lis)
-	if err != grpcServer.Serve(lis) {
+	if err != grpcServer.Serve(listener) {
 		logger.Fatalf("Failed while serving: %v", err)
 	}
 }

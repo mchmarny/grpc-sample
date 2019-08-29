@@ -3,12 +3,12 @@ package main
 import (
 	"crypto/tls"
 	"flag"
-	"fmt"
 	"io"
 	"log"
 	"os"
 	"time"
 
+	ptypes "github.com/golang/protobuf/ptypes"
 	pb "github.com/mchmarny/grpc-sample/pkg/api/v1"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
@@ -22,6 +22,8 @@ var (
 	insecure   = flag.Bool("insecure", false, "Skip SSL validation? [false]")
 	skipVerify = flag.Bool("skip-verify", false, "Skip server hostname verification in SSL validation [false]")
 	streamMsgs = flag.Int("stream-msg-num", 10, "Number of stream messages [10]")
+	author     = flag.String("author", "Sample Client", "The author of the content sent to server")
+	message    = flag.String("message", "Hi there", "The body of the content sent to server")
 )
 
 func main() {
@@ -43,32 +45,34 @@ func main() {
 		logger.Fatalf("Failed to dial: %v", err)
 	}
 	defer conn.Close()
-	client := pb.NewPingServiceClient(conn)
-	ping(client, "hello")
-	pingStream(client, "hello")
+	client := pb.NewMessageServiceClient(conn)
+	send(client)
+	sendStream(client)
 }
 
-func ping(client pb.PingServiceClient, msg string) {
+func send(client pb.MessageServiceClient) {
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
-	rep, err := client.Ping(ctx, &pb.Request{Msg: msg})
+	rep, err := client.Send(ctx, &pb.Request{Content: getContent()})
 	if err != nil {
-		logger.Fatalf("%v.Ping failed %v: ", client, err)
+		logger.Fatalf("Error while executing Send: %v", err)
 	}
-	logger.Printf("[unary-unary] ping response: %v", rep.GetMsg())
+	logger.Printf("unary request, unary response\n  Sent[%d]: %+v",
+		rep.GetIndex(), rep.GetReceivedOn())
 }
 
-func pingStream(client pb.PingServiceClient, msg string) {
+func sendStream(client pb.MessageServiceClient) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Minute)
 	defer cancel()
 
-	stream, err := client.PingStream(ctx)
+	stream, err := client.SendStream(ctx)
 	if err != nil {
 		logger.Fatalf("Error client (%v) PingStream: %v", client, err)
 	}
 
 	waitCh := make(chan struct{})
 	go func() {
+		logger.Println("unary request, stream response")
 		for {
 			in, err := stream.Recv()
 			if err == io.EOF {
@@ -78,17 +82,26 @@ func pingStream(client pb.PingServiceClient, msg string) {
 			if err != nil {
 				logger.Fatalf("Failed to receive a response: %v", err)
 			}
-			logger.Printf("[unary-stream] ping response: %s", in.GetMsg())
+			logger.Printf("  Sent[%d]: %+v",
+				in.GetIndex(), in.GetReceivedOn())
 		}
 	}()
 
 	i := 0
 	for i < *streamMsgs {
-		if err := stream.Send(&pb.Request{Msg: fmt.Sprintf("%s-%d", msg, i)}); err != nil {
-			logger.Fatalf("Failed to send a ping: %v", err)
+		if err := stream.Send(&pb.Request{Content: getContent()}); err != nil {
+			logger.Fatalf("Failed to Send: %v", err)
 		}
 		i++
 	}
 	stream.CloseSend()
 	<-waitCh
+}
+
+func getContent() *pb.Content {
+	return &pb.Content{
+		Body:      *message,
+		Author:    *author,
+		CreatedOn: ptypes.TimestampNow(),
+	}
 }

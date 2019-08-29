@@ -9,10 +9,4 @@ protoc \
     --proto_path api/v1 \
     --proto_path $GOOGLEAPIS_DIR \
     --go_out "plugins=grpc:pkg/api/v1" \
-    ping.proto
-
-protoc \
-    --proto_path api/v1 \
-    --proto_path $GOOGLEAPIS_DIR \
-    --grpc-gateway_out "logtostderr=true:pkg/api/v1" \
-    ping.proto
+    message.proto

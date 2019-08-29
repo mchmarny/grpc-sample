@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package ping;
+
+import "google/protobuf/timestamp.proto";
+
+service MessageService {
+  rpc Send(Request) returns (Response) {}
+  rpc SendStream(stream Request) returns (stream Response) {}
+}
+
+message Content {
+  string body = 1;
+  string author = 2;
+  google.protobuf.Timestamp created_on = 3;
+}
+
+message Request {
+  Content content = 1;
+}
+
+message Response {
+  int32 index = 1;
+  Content content = 2;
+  google.protobuf.Timestamp received_on = 3;
+}
+
+
